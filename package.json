@@ -6,7 +6,8 @@
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
 		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
-		"version": "node version-bump.mjs && git add manifest.json versions.json"
+		"version": "node version-bump.mjs && git add manifest.json versions.json",
+		"start:obsidian:win": "powershell Start-Process -FilePath \"$env:LOCALAPPDATA\\Programs\\Obsidian\\Obsidian.exe\" -ArgumentList '--enable-debug-logging', '--remote-debugging-port=9222'"
 	},
 	"keywords": [],
 	"author": "Valentin Schröter",
