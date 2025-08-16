@@ -317,9 +317,7 @@ export default class LinkerPlugin extends Plugin {
                         // Item to convert a virtual link to a real link
                         item.setTitle('[Virtual Linker] Convert to real link')
                             .setIcon('link')
-                            .onClick(() => {
-                                convertToRealLink(targetElement, file, app, settings);
-                            });
+                            .onClick(() => convertToRealLink(targetElement, file, app, settings));
                     });
                 }
 
@@ -1002,7 +1000,8 @@ class LinkerSettingTab extends PluginSettingTab {
     }
 }
 
-function convertToRealLink(targetElement: HTMLElement, file: TAbstractFile, app: App, settings: LinkerPluginSettings) {
+export function convertToRealLink(targetElement: HTMLElement, targetFile: TAbstractFile, app: App, settings: LinkerPluginSettings) {
+
     // Get from and to position from the element
     const from = parseInt(targetElement.getAttribute('from') || '-1');
     const to = parseInt(targetElement.getAttribute('to') || '-1');
@@ -1013,8 +1012,7 @@ function convertToRealLink(targetElement: HTMLElement, file: TAbstractFile, app:
     }
 
     // Get the shown text
-    const text = targetElement.getAttribute('origin-text') || '';
-    const target = file;
+    const text = targetElement.getAttribute('origin-text') || '';;
     const activeFile = app.workspace.getActiveFile();
     const activeFilePath = activeFile?.path ?? '';
 
@@ -1023,25 +1021,33 @@ function convertToRealLink(targetElement: HTMLElement, file: TAbstractFile, app:
         return;
     }
 
-    let absolutePath = target.path;
-    let relativePath =
-        path.relative(path.dirname(activeFile.path), path.dirname(absolutePath)) +
+    let absolutePath = targetFile.path;
+    let relativePath = path.relative(path.dirname(activeFile.path), path.dirname(absolutePath)) +
         '/' +
         path.basename(absolutePath);
     relativePath = relativePath.replace(/\\/g, '/'); // Replace backslashes with forward slashes
 
+
     // Problem: we cannot just take the fileToLinktext result, as it depends on the app settings
-    const replacementPath = app.metadataCache.fileToLinktext(target as TFile, activeFilePath);
+    const replacementPath = app.metadataCache.fileToLinktext(targetFile as TFile, activeFilePath);
 
     // The last part of the replacement path is the real shortest file name
     // We have to check, if it leads to the correct file
     const lastPart = replacementPath.split('/').pop()!;
     const shortestFile = app.metadataCache.getFirstLinkpathDest(lastPart!, '');
     // let shortestPath = shortestFile?.path == target.path ? lastPart : replacementPath;
-    let shortestPath = shortestFile?.path == target.path ? lastPart : absolutePath;
+    let shortestPath = shortestFile?.path == targetFile.path ? lastPart : absolutePath;
+
+    const useMarkdownLinks = settings.useDefaultLinkStyleForConversion
+        ? settings.defaultUseMarkdownLinks
+        : settings.useMarkdownLinks;
+
+    const linkFormat = settings.useDefaultLinkStyleForConversion
+        ? settings.defaultLinkFormat
+        : settings.linkFormat;
 
     // Remove superfluous .md extension
-    if (!replacementPath.endsWith('.md')) {
+    if (!replacementPath.endsWith('.md') && !useMarkdownLinks) {
         if (absolutePath.endsWith('.md')) {
             absolutePath = absolutePath.slice(0, -3);
         }
@@ -1053,17 +1059,10 @@ function convertToRealLink(targetElement: HTMLElement, file: TAbstractFile, app:
         }
     }
 
-    const useMarkdownLinks = settings.useDefaultLinkStyleForConversion
-        ? settings.defaultUseMarkdownLinks
-        : settings.useMarkdownLinks;
-
-    const linkFormat = settings.useDefaultLinkStyleForConversion
-        ? settings.defaultLinkFormat
-        : settings.linkFormat;
-
     const createLink = (replacementPath: string, text: string, markdownStyle: boolean) => {
         if (markdownStyle) {
-            return `[${text}](${replacementPath})`;
+            const urlEncodedPath = encodeURI(replacementPath);
+            return `[${text}](${urlEncodedPath})`;
         } else {
             return `[[${replacementPath}|${text}]]`;
         }
@@ -1076,6 +1075,7 @@ function convertToRealLink(targetElement: HTMLElement, file: TAbstractFile, app:
     if (replacementPath === text && linkFormat === 'shortest') {
         replacement = `[[${replacementPath}]]`;
     }
+
     // Otherwise create a specific link, using the shown text
     else {
         if (linkFormat === 'shortest') {
@@ -1088,14 +1088,23 @@ function convertToRealLink(targetElement: HTMLElement, file: TAbstractFile, app:
     }
 
     // Replace the text
-    const editor = app.workspace.getActiveViewOfType(MarkdownView)?.editor;
-    const fromEditorPos = editor?.offsetToPos(from);
-    const toEditorPos = editor?.offsetToPos(to);
+    const activeView = app.workspace.getActiveViewOfType(MarkdownView);
+    if (!activeView)
+        return;
+    const editor = activeView.editor;
+    const fromEditorPos = editor.offsetToPos(from);
+    const toEditorPos = editor.offsetToPos(to);
 
     if (!fromEditorPos || !toEditorPos) {
         console.warn('No editor positions');
         return;
     }
+    //remember scroll position
+    const scrollPos = editor.getScrollInfo();
+    editor.replaceRange(replacement, fromEditorPos, toEditorPos);
+    // activeView.onload = () => {
+    //     editor.scrollTo(scrollPos.left, scrollPos.top);
+    // };
+    setTimeout(() => editor.scrollTo(scrollPos.left, scrollPos.top), 100);
 
-    editor?.replaceRange(replacement, fromEditorPos, toEditorPos);
-}
+};

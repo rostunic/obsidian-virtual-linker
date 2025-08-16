@@ -21,6 +21,20 @@ function isDescendant(parent: HTMLElement, child: HTMLElement, maxDepth: number 
     return false;
 }
 
+function getFileForEditorView(app: App, editorView: EditorView): TFile | null {
+    const editorDom = editorView.dom;
+    for (const leaf of app.workspace.getLeavesOfType("markdown")) {
+        const view = leaf.view;
+        if (view instanceof MarkdownView) {
+            // Try to find a descendant of the MarkdownView's contentEl that matches the EditorView's dom
+            if (view.contentEl.contains(editorDom)) {
+                return view.file;
+            }
+        }
+    }
+    return null;
+}
+
 export class VirtualLinkWidget extends WidgetType {
     constructor(public match: VirtualMatch) {
         super();
@@ -104,8 +118,10 @@ class AutoLinkerPlugin implements PluginValue {
             return builder.finish();
         }
 
-        const dom = view.dom;
-        const mappedFile = this.viewUpdateDomToFileMap.get(dom);
+
+        const mappedFile = getFileForEditorView(this.app, view);
+        if (!mappedFile)
+            return builder.finish();
 
         // Check if the file is inside excluded folders
         const excludedFolders = this.settings.excludedDirectoriesForLinking;
@@ -166,7 +182,7 @@ class AutoLinkerPlugin implements PluginValue {
                             // console.log("MATCH", name, aFrom, aTo, node.caseIsMatched, node.requiresCaseMatch)
 
                             matches.push(
-                                new VirtualMatch(id++, name, aFrom, aTo, Array.from(node.files), isAlias, !isWordBoundary, this.settings)
+                                new VirtualMatch(id++, name, this.app, aFrom, aTo, Array.from(node.files), isAlias, !isWordBoundary, this.settings)
                             );
                         }
                     }

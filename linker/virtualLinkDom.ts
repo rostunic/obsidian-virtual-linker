@@ -1,18 +1,20 @@
 import IntervalTree from '@flatten-js/interval-tree';
-import { LinkerPluginSettings } from 'main';
-import { TFile } from 'obsidian';
+import { convertToRealLink, LinkerPluginSettings } from 'main';
+import { App, TFile } from 'obsidian';
+
 
 export class VirtualMatch {
     constructor(
         public id: number,
         public originText: string,
+        public app: App,
         public from: number,
         public to: number,
         public files: TFile[],
         public isAlias: boolean,
         public isSubWord: boolean,
         public settings: LinkerPluginSettings
-    ) {}
+    ) { }
 
     /////////////////////////////////////////////////
     // DOM methods
@@ -20,8 +22,9 @@ export class VirtualMatch {
 
     getCompleteLinkElement() {
         const span = this.getLinkRootSpan();
-        const firstPath = this.files.length > 0 ? this.files[0].path: ""; 
-        span.appendChild(this.getLinkAnchorElement(this.originText, firstPath));
+        const firstPath = this.files.length > 0 ? this.files[0].path : "";
+        const link = this.getLinkAnchorElement(this.originText, firstPath);
+        span.appendChild(link);
         if (this.files.length > 1) {
             if (!this.isSubWord) {
                 span.appendChild(this.getMultipleReferencesIndicatorSpan());
@@ -31,6 +34,11 @@ export class VirtualMatch {
 
         if (!this.isSubWord || !this.settings.suppressSuffixForSubWords) {
             const icon = this.getIconSpan();
+            if (icon) {
+                icon.onclick = (evt) => {
+                    convertToRealLink(link, this.files[0], this.app, this.settings);
+                };
+            }
             if (icon) span.appendChild(icon);
         }
         return span;
