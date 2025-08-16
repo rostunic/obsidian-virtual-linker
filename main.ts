@@ -42,6 +42,7 @@ export interface LinkerPluginSettings {
     excludeLinksToRealLinkedFiles: boolean;
     includeAliases: boolean;
     alwaysShowMultipleReferences: boolean;
+    clickIconConvertsToRealLink: boolean;
     // wordBoundaryRegex: string;
     // conversionFormat
 }
@@ -81,6 +82,7 @@ const DEFAULT_SETTINGS: LinkerPluginSettings = {
     excludeLinksToRealLinkedFiles: true,
     includeAliases: true,
     alwaysShowMultipleReferences: false,
+    clickIconConvertsToRealLink: false,
     // wordBoundaryRegex: '/[\t- !-/:-@\[-`{-~\p{Emoji_Presentation}\p{Extended_Pictographic}]/u',
 };
 
@@ -966,6 +968,18 @@ class LinkerSettingTab extends PluginSettingTab {
                     // console.log("Use default link style for conversion: " + value);
                     await this.plugin.updateSettings({ useDefaultLinkStyleForConversion: value });
                     this.display();
+                })
+            );
+
+
+        // Toggle setting if a click on the icon should convert to real link
+        new Setting(containerEl)
+            .setName('Click on icon converts to real link')
+            .setDesc('If toggled, clicking the icon will convert the virtual link to a real link.')
+            .addToggle((toggle) =>
+                toggle.setValue(this.plugin.settings.clickIconConvertsToRealLink).onChange(async (value) => {
+                    // console.log("Click icon converts to real link: " + value);
+                    await this.plugin.updateSettings({ clickIconConvertsToRealLink: value });
                 })
             );
 

@@ -35,8 +35,10 @@ export class VirtualMatch {
         if (!this.isSubWord || !this.settings.suppressSuffixForSubWords) {
             const icon = this.getIconSpan();
             if (icon) {
-                icon.onclick = (evt) => {
-                    convertToRealLink(link, this.files[0], this.app, this.settings);
+                icon.onclick = () => {
+                    if (this.settings.clickIconConvertsToRealLink) {
+                        convertToRealLink(link, this.files[0], this.app, this.settings);
+                    }
                 };
             }
             if (icon) span.appendChild(icon);
