@@ -184,7 +184,7 @@ export default class LinkerPlugin extends Plugin {
                 if (virtualLinks.length === 0) return;
 
                 // Process all links in a single operation
-                const replacements: {from: number, to: number, text: string}[] = [];
+                const replacements: { from: number, to: number, text: string }[] = [];
 
                 for (const link of virtualLinks) {
                     const targetFile = this.app.vault.getAbstractFileByPath(link.href);
@@ -225,8 +225,8 @@ export default class LinkerPlugin extends Plugin {
                         replacement = `[[${replacementPath}]]`;
                     } else {
                         const path = linkFormat === 'shortest' ? shortestPath :
-                                   linkFormat === 'relative' ? relativePath :
-                                   absolutePath;
+                            linkFormat === 'relative' ? relativePath :
+                                absolutePath;
 
                         replacement = useMarkdownLinks ?
                             `[${link.text}](${path})` :
@@ -259,9 +259,9 @@ export default class LinkerPlugin extends Plugin {
     ): boolean {
         return (
             (linkFrom.line > selectionFrom.line ||
-             (linkFrom.line === selectionFrom.line && linkFrom.ch >= selectionFrom.ch)) &&
+                (linkFrom.line === selectionFrom.line && linkFrom.ch >= selectionFrom.ch)) &&
             (linkTo.line < selectionTo.line ||
-             (linkTo.line === selectionTo.line && linkTo.ch <= selectionTo.ch))
+                (linkTo.line === selectionTo.line && linkTo.ch <= selectionTo.ch))
         );
     }
 
@@ -318,101 +318,7 @@ export default class LinkerPlugin extends Plugin {
                         item.setTitle('[Virtual Linker] Convert to real link')
                             .setIcon('link')
                             .onClick(() => {
-                                // Get from and to position from the element
-                                const from = parseInt(targetElement.getAttribute('from') || '-1');
-                                const to = parseInt(targetElement.getAttribute('to') || '-1');
-
-                                if (from === -1 || to === -1) {
-                                    console.error('No from or to position');
-                                    return;
-                                }
-
-                                // Get the shown text
-                                const text = targetElement.getAttribute('origin-text') || '';
-                                const target = file;
-                                const activeFile = app.workspace.getActiveFile();
-                                const activeFilePath = activeFile?.path ?? '';
-
-                                if (!activeFile) {
-                                    console.error('No active file');
-                                    return;
-                                }
-
-                                let absolutePath = target.path;
-                                let relativePath =
-                                    path.relative(path.dirname(activeFile.path), path.dirname(absolutePath)) +
-                                    '/' +
-                                    path.basename(absolutePath);
-                                relativePath = relativePath.replace(/\\/g, '/'); // Replace backslashes with forward slashes
-
-                                // Problem: we cannot just take the fileToLinktext result, as it depends on the app settings
-                                const replacementPath = app.metadataCache.fileToLinktext(target as TFile, activeFilePath);
-
-                                // The last part of the replacement path is the real shortest file name
-                                // We have to check, if it leads to the correct file
-                                const lastPart = replacementPath.split('/').pop()!;
-                                const shortestFile = app.metadataCache.getFirstLinkpathDest(lastPart!, '');
-                                // let shortestPath = shortestFile?.path == target.path ? lastPart : replacementPath;
-                                let shortestPath = shortestFile?.path == target.path ? lastPart : absolutePath;
-
-                                // Remove superfluous .md extension
-                                if (!replacementPath.endsWith('.md')) {
-                                    if (absolutePath.endsWith('.md')) {
-                                        absolutePath = absolutePath.slice(0, -3);
-                                    }
-                                    if (shortestPath.endsWith('.md')) {
-                                        shortestPath = shortestPath.slice(0, -3);
-                                    }
-                                    if (relativePath.endsWith('.md')) {
-                                        relativePath = relativePath.slice(0, -3);
-                                    }
-                                }
-
-                                const useMarkdownLinks = settings.useDefaultLinkStyleForConversion
-                                    ? settings.defaultUseMarkdownLinks
-                                    : settings.useMarkdownLinks;
-
-                                const linkFormat = settings.useDefaultLinkStyleForConversion
-                                    ? settings.defaultLinkFormat
-                                    : settings.linkFormat;
-
-                                const createLink = (replacementPath: string, text: string, markdownStyle: boolean) => {
-                                    if (markdownStyle) {
-                                        return `[${text}](${replacementPath})`;
-                                    } else {
-                                        return `[[${replacementPath}|${text}]]`;
-                                    }
-                                };
-
-                                // Create the replacement
-                                let replacement = '';
-
-                                // If the file is the same as the shown text, and we can use short links, we use them
-                                if (replacementPath === text && linkFormat === 'shortest') {
-                                    replacement = `[[${replacementPath}]]`;
-                                }
-                                // Otherwise create a specific link, using the shown text
-                                else {
-                                    if (linkFormat === 'shortest') {
-                                        replacement = createLink(shortestPath, text, useMarkdownLinks);
-                                    } else if (linkFormat === 'relative') {
-                                        replacement = createLink(relativePath, text, useMarkdownLinks);
-                                    } else if (linkFormat === 'absolute') {
-                                        replacement = createLink(absolutePath, text, useMarkdownLinks);
-                                    }
-                                }
-
-                                // Replace the text
-                                const editor = app.workspace.getActiveViewOfType(MarkdownView)?.editor;
-                                const fromEditorPos = editor?.offsetToPos(from);
-                                const toEditorPos = editor?.offsetToPos(to);
-
-                                if (!fromEditorPos || !toEditorPos) {
-                                    console.warn('No editor positions');
-                                    return;
-                                }
-
-                                editor?.replaceRange(replacement, fromEditorPos, toEditorPos);
+                                convertToRealLink(targetElement, file, app, settings);
                             });
                     });
                 }
@@ -589,7 +495,7 @@ export default class LinkerPlugin extends Plugin {
         }
     }
 
-    onunload() {}
+    onunload() { }
 
     async loadSettings() {
         this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
@@ -1094,4 +1000,102 @@ class LinkerSettingTab extends PluginSettingTab {
                 );
         }
     }
+}
+
+function convertToRealLink(targetElement: HTMLElement, file: TAbstractFile, app: App, settings: LinkerPluginSettings) {
+    // Get from and to position from the element
+    const from = parseInt(targetElement.getAttribute('from') || '-1');
+    const to = parseInt(targetElement.getAttribute('to') || '-1');
+
+    if (from === -1 || to === -1) {
+        console.error('No from or to position');
+        return;
+    }
+
+    // Get the shown text
+    const text = targetElement.getAttribute('origin-text') || '';
+    const target = file;
+    const activeFile = app.workspace.getActiveFile();
+    const activeFilePath = activeFile?.path ?? '';
+
+    if (!activeFile) {
+        console.error('No active file');
+        return;
+    }
+
+    let absolutePath = target.path;
+    let relativePath =
+        path.relative(path.dirname(activeFile.path), path.dirname(absolutePath)) +
+        '/' +
+        path.basename(absolutePath);
+    relativePath = relativePath.replace(/\\/g, '/'); // Replace backslashes with forward slashes
+
+    // Problem: we cannot just take the fileToLinktext result, as it depends on the app settings
+    const replacementPath = app.metadataCache.fileToLinktext(target as TFile, activeFilePath);
+
+    // The last part of the replacement path is the real shortest file name
+    // We have to check, if it leads to the correct file
+    const lastPart = replacementPath.split('/').pop()!;
+    const shortestFile = app.metadataCache.getFirstLinkpathDest(lastPart!, '');
+    // let shortestPath = shortestFile?.path == target.path ? lastPart : replacementPath;
+    let shortestPath = shortestFile?.path == target.path ? lastPart : absolutePath;
+
+    // Remove superfluous .md extension
+    if (!replacementPath.endsWith('.md')) {
+        if (absolutePath.endsWith('.md')) {
+            absolutePath = absolutePath.slice(0, -3);
+        }
+        if (shortestPath.endsWith('.md')) {
+            shortestPath = shortestPath.slice(0, -3);
+        }
+        if (relativePath.endsWith('.md')) {
+            relativePath = relativePath.slice(0, -3);
+        }
+    }
+
+    const useMarkdownLinks = settings.useDefaultLinkStyleForConversion
+        ? settings.defaultUseMarkdownLinks
+        : settings.useMarkdownLinks;
+
+    const linkFormat = settings.useDefaultLinkStyleForConversion
+        ? settings.defaultLinkFormat
+        : settings.linkFormat;
+
+    const createLink = (replacementPath: string, text: string, markdownStyle: boolean) => {
+        if (markdownStyle) {
+            return `[${text}](${replacementPath})`;
+        } else {
+            return `[[${replacementPath}|${text}]]`;
+        }
+    };
+
+    // Create the replacement
+    let replacement = '';
+
+    // If the file is the same as the shown text, and we can use short links, we use them
+    if (replacementPath === text && linkFormat === 'shortest') {
+        replacement = `[[${replacementPath}]]`;
+    }
+    // Otherwise create a specific link, using the shown text
+    else {
+        if (linkFormat === 'shortest') {
+            replacement = createLink(shortestPath, text, useMarkdownLinks);
+        } else if (linkFormat === 'relative') {
+            replacement = createLink(relativePath, text, useMarkdownLinks);
+        } else if (linkFormat === 'absolute') {
+            replacement = createLink(absolutePath, text, useMarkdownLinks);
+        }
+    }
+
+    // Replace the text
+    const editor = app.workspace.getActiveViewOfType(MarkdownView)?.editor;
+    const fromEditorPos = editor?.offsetToPos(from);
+    const toEditorPos = editor?.offsetToPos(to);
+
+    if (!fromEditorPos || !toEditorPos) {
+        console.warn('No editor positions');
+        return;
+    }
+
+    editor?.replaceRange(replacement, fromEditorPos, toEditorPos);
 }
