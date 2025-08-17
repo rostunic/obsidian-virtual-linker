@@ -33,6 +33,7 @@ export interface LinkerPluginSettings {
     tagToMatchCase: string;
     propertyNameToMatchCase: string;
     propertyNameToIgnoreCase: string;
+    propertyNameToExcludeTexts: string;
     tagToExcludeFile: string;
     tagToIncludeFile: string;
     excludeLinksToOwnNote: boolean;
@@ -73,6 +74,7 @@ const DEFAULT_SETTINGS: LinkerPluginSettings = {
     tagToMatchCase: 'linker-match-case',
     propertyNameToMatchCase: 'linker-match-case',
     propertyNameToIgnoreCase: 'linker-ignore-case',
+    propertyNameToExcludeTexts: 'linker-excluded-texts',
     tagToExcludeFile: 'linker-exclude',
     tagToIncludeFile: 'linker-include',
     excludeLinksToOwnNote: true,
@@ -764,6 +766,17 @@ class LinkerSettingTab extends PluginSettingTab {
                         await this.plugin.updateSettings({ propertyNameToIgnoreCase: value });
                     })
                 );
+
+
+
+            // Text setting for property name to exclude specific texts
+            new Setting(containerEl)
+                .setName('Property name to exclude specific texts')
+                .setDesc('By adding this property to a note, containing a list of names, the linker will exclude the specified names / aliases from being matched.')
+                .addTextArea((text) => {
+                    text.setValue(this.plugin.settings.propertyNameToExcludeTexts)
+                        .onChange(async (value) => { this.plugin.settings.propertyNameToExcludeTexts = value });
+                });
 
             // Text setting for property name to match case
             new Setting(containerEl)

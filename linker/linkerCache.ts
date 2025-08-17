@@ -6,7 +6,7 @@ import { LinkerMetaInfoFetcher } from './linkerInfo';
 export class ExternalUpdateManager {
     registeredCallbacks: Set<Function> = new Set();
 
-    constructor() {}
+    constructor() { }
 
     registerCallback(callback: Function) {
         this.registeredCallbacks.add(callback);
@@ -227,10 +227,12 @@ export class PrefixTree {
 
         let aliasesWithMatchCase: Set<string> = new Set(metadata?.frontmatter?.[this.settings.propertyNameToMatchCase] ?? []);
         let aliasesWithIgnoreCase: Set<string> = new Set(metadata?.frontmatter?.[this.settings.propertyNameToIgnoreCase] ?? []);
+        let excludedAliases: Set<string> = new Set(metadata?.frontmatter?.[this.settings.propertyNameToExcludeTexts] ?? []);
 
         // if (aliasesWithMatchCase.size > 0 || aliasesWithIgnoreCase.size > 0) {
         //     console.log("Aliases with match case", aliasesWithMatchCase, file.basename);
         //     console.log("Aliases with ignore case", aliasesWithIgnoreCase, file.basename);
+        //     console.log("Excluded aliases", excludedAliases, file.basename);
         // }
 
         // If aliases is not an array, convert it to an array
@@ -251,6 +253,7 @@ export class PrefixTree {
         }
 
         names = names.filter(PrefixTree.isNoneEmptyString);
+        names = names.filter((name) => !excludedAliases.has(name));
 
         let namesWithCaseIgnore = new Array<string>();
         let namesWithCaseMatch = new Array<string>();
@@ -483,7 +486,7 @@ export class PrefixTree {
 }
 
 export class CachedFile {
-    constructor(public mtime: number, public file: TFile, public aliases: string[], public tags: string[]) {}
+    constructor(public mtime: number, public file: TFile, public aliases: string[], public tags: string[]) { }
 }
 
 export class LinkerCache {

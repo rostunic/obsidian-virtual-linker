@@ -49,6 +49,8 @@ Furthermore, you can explicitly include or exclude specific files from being mat
 - `linker-include` to explicitly include a file
 - `linker-exclude` to explicitly exclude a file
 
+You can exclude a specific text (e.g. alias) from being matched by adding it to the `linker-excluded-texts` property of the file.
+
 You can also exclude all files in a specific folder by adding the folder to the exclude list in the settings.
 
 > [!Note]
